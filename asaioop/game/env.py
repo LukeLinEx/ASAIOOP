@@ -129,15 +129,14 @@ class AnimalShogiEnv(gym.Env):
         return row * 3 + col
 
 
-
 if __name__ == "__main__":
     env = AnimalShogiEnv()
-    # env.current_player = -1
+    env.current_player = -1
     env.render()
 
 
     # TODO: validate a few cases, save them as test cases
-    print(env.generate_valid_destinations(1, 10))
+    print(env.generate_valid_destinations(-1, 10))
 
 
 
