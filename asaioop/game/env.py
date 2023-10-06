@@ -133,12 +133,10 @@ class AnimalShogiEnv(gym.Env):
         
         elif action_type == "drop":
             # Place the piece from the storage to the board
-            piece = tbd
+            piece = abs(tbd) # here we make piece positive as we will use it to get the index in storage.
 
-            ### VVVVVVVVVVVVVVV##################
-            if self.remove_from_storage(piece):  # Succeeds in removing piece from storage
-                self.board[to_location] = piece
-            ### ^^^^^^^^^^^^^^##################
+            if self.remove_from_storage(piece): 
+                self.board[to_location] = self.current_player*piece
             else:
                 # Handle invalid action, like trying to drop a piece not in storage
                 # Depending on your approach you may choose to penalize the model here
