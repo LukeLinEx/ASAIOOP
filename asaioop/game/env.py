@@ -16,7 +16,7 @@ from gym import spaces
 # -5: Chicken (Player 2)
 
 class AnimalShogiEnv(gym.Env):
-    def __init__(self):
+    def __init__(self, init_board=None):
         super(AnimalShogiEnv, self).__init__()
         
         # Flattened representation of the 4x3 board
@@ -28,14 +28,17 @@ class AnimalShogiEnv(gym.Env):
         # Initialize the board and other required variables
         self.board = np.zeros(12, dtype=np.int8)
         self.player1_storage = [0,0,0] # zero giraffe, zero elephant, and zero chick to begin with. [2,2,2] at most.
-        self.palyer2_storage = [0,0,0]
-        self._setup_board()
+        self.player2_storage = [0,0,0]
+        self._setup_board(init_board)
         self.current_player = 1
 
-    def _setup_board(self):
+    def _setup_board(self, init_board=None):
         # Resetting the board to a default configuration
         # Just a basic setup, you may change it to the standard starting position
-        self.board = np.array([-2,-1,-3,0,-4,0,0,4,0,3,1,2], dtype=np.int8)
+        if init_board is not None:
+            self.board = np.array(init_board, dtype=np.int8)
+        else:
+            self.board = np.array([2,1,3,0,4,0,0,-4,0,-3,-1,-2], dtype=np.int8)
 
 
     def generate_valid_actions(self):
@@ -47,15 +50,16 @@ class AnimalShogiEnv(gym.Env):
             
             # Skip empty squares and then check if the piece belongs to the current player
             if self.current_player*piece > 0:
-                valid_destinations = self.genearte_valid_destination(piece, from_cell)
-                for to_cell in valid_destinations(piece, from_cell):
+                valid_destinations = self.generate_valid_destinations(piece, from_cell)
+                for to_cell in valid_destinations:
                     valid_actions.append(('move', from_cell, to_cell))
         
         # Check valid drop actions for pieces in storage
         storage = self.player1_storage if self.current_player == 1 else self.player2_storage
-        for piece in storage:
+        for i in range(len(storage)):
+            piece = i + 2
             for to_cell in range(12):
-                if self.board[to_cell] == 0:  # can drop only on empty squares
+                if storage[i] > 0 and self.board[to_cell] == 0:  # can drop only on empty squares
                     valid_actions.append(('drop', piece, to_cell))
 
         return valid_actions
@@ -89,27 +93,113 @@ class AnimalShogiEnv(gym.Env):
 
         return valid_destinations
 
-
     def reset(self):
         self._setup_board()
         return self.board
 
     def step(self, action):
-        # Here, you'd implement the game mechanics for moving the selected piece to the target square.
-        # For simplicity, I'm just returning the board state as is without any action logic.
-        # You'd need to implement rules for each piece, possible promotions, captures, etc.
+        """
+        action: a tuple (action_type, from_location, to_location)
+            - action_type: "move" or "drop"
+            - from_location: index in the flattened board or piece type (when dropping a piece)
+            - to_location: index in the flattened board where the piece should move/drop
+        """
         reward = 0
         done = False
+        info = {}
+        
+        action_type, tbd, to_location = action
+        
+        if action_type == "move":
+            from_location = tbd
+            # Perform the move
+            piece = self.board[from_location]
+            target = self.board[to_location]
+            
+            # Check for capture
+            if target != 0:
+                # Add the piece to the storage, converting it to a positive value if it is negative
+                self.add_to_storage(abs(target))
+                
+            # Update the board
+            self.board[from_location] = 0
+            self.board[to_location] = piece
+            
+            # Check for promotion (assuming chick (4) promotes to chicken (5) and it promotes only when it moves into the final rank)
+            if piece == 4 and 9 <= to_location <= 11:  # Moving to the last rank
+                self.board[to_location] = 5  # Promote chick to chicken
+            elif piece == -4 and 0 <= to_location <= 2:  # Moving to the last rank
+                self.board[to_location] = -5  # Promote chick to chicken
+        
+        elif action_type == "drop":
+            # Place the piece from the storage to the board
+            piece = tbd
 
-        # Example: Check for win condition if a lion is captured
+            ### VVVVVVVVVVVVVVV##################
+            if self.remove_from_storage(piece):  # Succeeds in removing piece from storage
+                self.board[to_location] = piece
+            ### ^^^^^^^^^^^^^^##################
+            else:
+                # Handle invalid action, like trying to drop a piece not in storage
+                # Depending on your approach you may choose to penalize the model here
+                pass
+        
+        # Check for win conditions
+        # 1. If a lion is captured
         if 1 not in self.board:
-            reward = -1
+            reward = 1  # Player 2 wins
             done = True
         elif -1 not in self.board:
-            reward = 1
+            reward = 1  # Player 1 wins
             done = True
+            
+        # 2. If a lion reaches the opponent's bottom row
+        if 1 in self.board[9:12]:
+            reward = 1  # Player 1 wins
+            done = True
+        # Player 2's lion reaches opponent's bottom row
+        elif -1 in self.board[0:3]:
+            reward = 1  # Player 2 wins
+            done = True
+            
+        self.current_player *= -1
+
+
+        return self.board.copy(), reward, done, info
+    
+    def add_to_storage(self, piece):
+        """Adds a piece to the player's storage."""
+        # Assuming piece is always positive
+        storage = self.player1_storage if self.current_player==1 else self.player2_storage
         
-        return self.board, reward, done, {}
+        if piece == 1:  # Lions cannot be captured
+            return False
+        
+        # Map other piece types to storage index
+        piece_type_to_storage_idx = {2: 0, 3: 1, 4: 2, 5: 2}
+        storage_idx = piece_type_to_storage_idx.get(abs(piece), None)
+        
+        # Update storage
+        if storage_idx is not None:
+            storage[storage_idx] += 1
+            return True
+        else:
+            return False
+        
+    def remove_from_storage(self, piece):
+        """Removes a piece from the player's storage."""
+        # Assuming piece is always positive
+        storage = self.player1_storage if self.current_player==1 else self.player2_storage
+        
+        piece_type_to_storage_idx = {2: 0, 3: 1, 4: 2, 5: 2}
+        storage_idx = piece_type_to_storage_idx.get(abs(piece), None)
+        
+        # Update storage
+        if storage_idx is not None and storage[storage_idx] > 0:
+            storage[storage_idx] -= 1
+            return True
+        else:
+            return False
 
     def render(self, mode='human'):
         # Printing the board for visualization
@@ -130,16 +220,53 @@ class AnimalShogiEnv(gym.Env):
 
 
 if __name__ == "__main__":
+    # With the current setting, player 1 should be on the top of the board,
+    # player 2 on the bottom.
+
+    import random
+
+    # Initialize environment
     env = AnimalShogiEnv()
-    env.current_player = -1
+    # Reset environment to start state
+    state = env.reset()
+
+    done = False
     env.render()
 
+    while not done:
+        # Generate valid actions for the current player
+        valid_actions = env.generate_valid_actions()
+        print(valid_actions)
+        # Select a random action from the list of valid actions
+        action = random.choice(valid_actions)
+        
+        # Apply the selected action and get the new state and reward
+        print(env.current_player, action)
+        next_state, reward, done, info = env.step(action)
+        
+        # Render the current state of the environment
+        env.render()
+        print(env.player1_storage)
+        print(env.player2_storage)
+        
+        # Display reward and done status
+        print(f"Reward: {reward}, Done: {done}")
+        
+        # Check if game is still ongoing
+        if not done:
+            # Prompt user if they want to continue
+            user_input = input("\n\nStop? (Y to stop, any other key to continue): ")
+            
+            # Break the loop if user input is "Y" or "y"
+            if user_input.lower() == "y":
+                break
+        else:
+            # Announce the winner
+            print(f"Player {2 if env.current_player == 1 else 1} wins!")
 
-    # TODO: validate a few cases, save them as test cases
-    print(env.generate_valid_destinations(-1, 10))
+    # Close the environment
+    env.close()
 
 
-
-
-
+# TODO: continue manually testing step. But move the main to a new .py file first Also Chick didn't turn to Chicken
 
