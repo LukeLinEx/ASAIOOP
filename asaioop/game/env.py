@@ -217,54 +217,7 @@ class AnimalShogiEnv(gym.Env):
         return row * 3 + col
 
 
-if __name__ == "__main__":
-    # With the current setting, player 1 should be on the top of the board,
-    # player 2 on the bottom.
-
-    import random
-
-    # Initialize environment
-    env = AnimalShogiEnv()
-    # Reset environment to start state
-    state = env.reset()
-
-    done = False
-    env.render()
-
-    while not done:
-        # Generate valid actions for the current player
-        valid_actions = env.generate_valid_actions()
-        print(valid_actions)
-        # Select a random action from the list of valid actions
-        action = random.choice(valid_actions)
-        
-        # Apply the selected action and get the new state and reward
-        print(env.current_player, action)
-        next_state, reward, done, info = env.step(action)
-        
-        # Render the current state of the environment
-        env.render()
-        print(env.player1_storage)
-        print(env.player2_storage)
-        
-        # Display reward and done status
-        print(f"Reward: {reward}, Done: {done}")
-        
-        # Check if game is still ongoing
-        if not done:
-            # Prompt user if they want to continue
-            user_input = input("\n\nStop? (Y to stop, any other key to continue): ")
-            
-            # Break the loop if user input is "Y" or "y"
-            if user_input.lower() == "y":
-                break
-        else:
-            # Announce the winner
-            print(f"Player {2 if env.current_player == 1 else 1} wins!")
-
-    # Close the environment
-    env.close()
-
-
-# TODO: continue manually testing step. But move the main to a new .py file first Also Chick didn't turn to Chicken
+# TODO: generating valid actions on the fly doesn't seem to fit stable baseline's structure. I will have to rewrite the step method to take integer action
+#       and then decode it to something executable in the context of ani shogi. With this, the step function will have to penalize greatly on an invalid move
+#       and shut the game.
 
