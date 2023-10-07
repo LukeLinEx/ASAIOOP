@@ -96,6 +96,19 @@ class AnimalShogiEnv(gym.Env):
     def reset(self):
         self._setup_board()
         return self.board
+    
+    @staticmethod
+    def decode_action(action):
+        if action < 144:
+            # It's a move action
+            from_cell = action // 12
+            to_cell = action % 12
+            return ('move', from_cell, to_cell)
+        else:
+            # It's a drop action
+            piece_type = (action - 144) // 12 + 2  # +2 to ensure piece types from 2 to 4
+            to_cell = (action - 144) % 12
+            return ('drop', piece_type, to_cell)
 
     def step(self, action):
         """
@@ -108,7 +121,18 @@ class AnimalShogiEnv(gym.Env):
         done = False
         info = {}
         
-        action_type, tbd, to_location = action
+        action = self.decode_action(action)
+        valid_actions = self.generate_valid_actions()
+        if action not in valid_actions:
+            reward = -100
+            done = True    # Optionally end the episode
+            # In practice, you might also want to return additional info
+            # about the invalid action for debugging purposes.
+            info = {"invalid_action": True}
+            return self.board.copy(), reward, done, info
+
+        action_type, tbd, to_location =  action
+
         
         if action_type == "move":
             from_location = tbd
@@ -137,10 +161,6 @@ class AnimalShogiEnv(gym.Env):
 
             if self.remove_from_storage(piece): 
                 self.board[to_location] = self.current_player*piece
-            else:
-                # Handle invalid action, like trying to drop a piece not in storage
-                # Depending on your approach you may choose to penalize the model here
-                pass
         
         # Check for win conditions
         # 1. If a lion is captured
@@ -217,7 +237,7 @@ class AnimalShogiEnv(gym.Env):
         return row * 3 + col
 
 
-# TODO: generating valid actions on the fly doesn't seem to fit stable baseline's structure. I will have to rewrite the step method to take integer action
-#       and then decode it to something executable in the context of ani shogi. With this, the step function will have to penalize greatly on an invalid move
-#       and shut the game.
 
+
+# TODO: Current state that step returns is not good. 
+# TODO: do I also need current player? Maybe not....just call the right player in the training loop
