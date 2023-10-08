@@ -1,42 +1,7 @@
 import numpy as np
 import random
-import gym
 from gym import spaces
-
-
-
-########### This whole thing is now in env.py ###################################
-# class AnimalShogiEnv(gym.Env):
-#     def __init__(self):
-#         super(AnimalShogiEnv, self).__init__()
-        
-#         # Flattened representation of the 4x3 board
-#         self.observation_space = spaces.Box(low=0, high=..., shape=(12,), dtype=np.float32)
-        
-#         # Assuming 'n' possible actions
-#         # self.action_space = spaces.Discrete(144 + 3 * 12)
-        
-#         # Initialize the board and other required variables
-#         # ...
-
-#     def reset(self):
-#         # Reset the board and return the initial state
-#         return ...
-
-#     def step(self, action):
-#         # Execute the action, return the new state, reward, done, and any additional info
-#         # ...
-#         return next_state, reward, done, {}
-
-#     def render(self, mode='human'):
-#         # Optional: Implement rendering for visualization
-#         pass
-
-#     def close(self):
-#         # Clean up the environment
-#         pass
-########### ^^^^^^^^^^^^^^^^^^^^^^^^   ############################################
-
+from asaioop.game.env import AnimalShogiEnv
 
 
 class QLearningAgent:
@@ -45,14 +10,20 @@ class QLearningAgent:
         self.alpha = alpha
         self.gamma = gamma
         self.epsilon = epsilon
-        self.n_actions = n_actions
+        self.n_actions = n_actions  # May not be needed if we use generate_valid_actions
 
-    def select_action(self, state):
+    def select_action(self, state, valid_actions): # TODO <<<<<< Not good
         state = tuple(state)
         if random.uniform(0, 1) < self.epsilon:
-            return random.choice(range(self.n_actions))
+            return random.choice(valid_actions)
         else:
-            return max(self.q_table.get(state, {}).keys(), key=lambda action: self.q_table[state].get(action, 0))
+            q_values = self.q_table.get(state, {})
+            # Filter available actions by their Q values or select a random action if Q values not present
+            actions = [action for action in valid_actions if action in q_values.keys()]
+            if actions:
+                return max(actions, key=lambda action: q_values.get(action, 0))
+            else:
+                return random.choice(valid_actions)
 
     def learn(self, state, action, reward, next_state):
         state = tuple(state)
@@ -65,7 +36,12 @@ class QLearningAgent:
             self.q_table[state] = {}
         self.q_table[state][action] = new_q_value
 
+
 if __name__ == "__main__":
+    # Q learning from scratch
+    import time 
+
+    start = time.time()
     env = AnimalShogiEnv()
     n_actions = env.action_space.n
 
@@ -89,3 +65,5 @@ if __name__ == "__main__":
                 player2.learn(state, action2, reward2, next_state)
             else:
                 player1.learn(state, action1, reward1, next_state)
+
+    print(time.time()-start)
