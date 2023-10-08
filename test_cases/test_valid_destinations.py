@@ -169,3 +169,19 @@ s = """[[0  0  0]
 location = 4
 current_player = 1
 viz_test_valid_destination_case(s, location, current_player)
+
+
+print(string_to_2d_array("""[[ 2  1  3]
+ [ 0  4  0]
+ [ 0 -4  0]
+ [-3 -1 -2]]"""))
+
+from asaioop.game.env import AnimalShogiEnv
+env = AnimalShogiEnv()
+
+# env._flattened_to_2d_idx(flat)
+#         # row = flat // 3
+#         # col = flat % 3
+#         # return row, col
+    
+print(env._2d_to_flattened_idx(0,0))
