@@ -1,4 +1,4 @@
-
+from copy import deepcopy
 import numpy as np
 import gym
 from gym import spaces
@@ -20,7 +20,7 @@ class AnimalShogiEnv(gym.Env):
         super(AnimalShogiEnv, self).__init__()
         
         # Flattened representation of the 4x3 board
-        self.observation_space = spaces.Box(low=-5, high=5, shape=(12,), dtype=np.int8)
+        self.observation_space = spaces.Box(low=-5, high=5, shape=(18,), dtype=np.int8)
         
         # Assuming each cell is a possible action for simplicity
         self.action_space = spaces.Discrete(144 + 3 * 12)
@@ -29,14 +29,14 @@ class AnimalShogiEnv(gym.Env):
         self.board = np.zeros(12, dtype=np.int8)
         self.player1_storage = [0,0,0] # zero giraffe, zero elephant, and zero chick to begin with. [2,2,2] at most.
         self.player2_storage = [0,0,0]
-        self._setup_board(init_board)
+        self.init_board = init_board
         self.current_player = 1
 
-    def _setup_board(self, init_board=None):
+    def _setup_board(self):
         # Resetting the board to a default configuration
         # Just a basic setup, you may change it to the standard starting position
-        if init_board is not None:
-            self.board = np.array(init_board, dtype=np.int8)
+        if self.init_board is not None:
+            self.board = np.array(self.init_board, dtype=np.int8)
         else:
             self.board = np.array([2,1,3,0,4,0,0,-4,0,-3,-1,-2], dtype=np.int8)
 
@@ -52,7 +52,11 @@ class AnimalShogiEnv(gym.Env):
             if self.current_player*piece > 0:
                 valid_destinations = self.generate_valid_destinations(piece, from_cell)
                 for to_cell in valid_destinations:
-                    valid_actions.append(('move', from_cell, to_cell))
+                    valid_actions.append((
+                        'move', 
+                        np.array([from_cell], np.int8), 
+                        np.array([to_cell], np.int8)
+                        ))
         
         # Check valid drop actions for pieces in storage
         storage = self.player1_storage if self.current_player == 1 else self.player2_storage
@@ -60,7 +64,11 @@ class AnimalShogiEnv(gym.Env):
             piece = i + 2
             for to_cell in range(12):
                 if storage[i] > 0 and self.board[to_cell] == 0:  # can drop only on empty squares
-                    valid_actions.append(('drop', piece, to_cell))
+                    valid_actions.append((
+                        'drop', 
+                        np.array([piece], np.int8), 
+                        np.array([to_cell], np.int8)
+                    ))
 
         return valid_actions
     
@@ -95,7 +103,12 @@ class AnimalShogiEnv(gym.Env):
 
     def reset(self):
         self._setup_board()
-        return self.board
+        self.player1_storage = [0,0,0] # zero giraffe, zero elephant, and zero chick to begin with. [2,2,2] at most.
+        self.player2_storage = [0,0,0]
+        self._setup_board()
+        self.current_player = 1
+
+        return np.concatenate([self.board, np.array(self.player1_storage, dtype=np.int8), np.array(self.player2_storage, dtype=np.int8)])
     
     @staticmethod
     def decode_action(action):
@@ -124,7 +137,7 @@ class AnimalShogiEnv(gym.Env):
         action = self.decode_action(action)
         valid_actions = self.generate_valid_actions()
         if action not in valid_actions:
-            reward = -100
+            reward = -10
             done = True    # Optionally end the episode
             # In practice, you might also want to return additional info
             # about the invalid action for debugging purposes.
@@ -182,8 +195,9 @@ class AnimalShogiEnv(gym.Env):
             
         self.current_player *= -1
 
+        next_state = np.concatenate([self.board, np.array(self.player1_storage), np.array(self.player2_storage)])
 
-        return self.board.copy(), reward, done, info
+        return next_state, reward, done, info
     
     def add_to_storage(self, piece):
         """Adds a piece to the player's storage."""
