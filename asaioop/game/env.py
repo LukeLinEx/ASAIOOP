@@ -20,17 +20,18 @@ class AnimalShogiEnv(gym.Env):
         super(AnimalShogiEnv, self).__init__()
         
         # Flattened representation of the 4x3 board
-        self.observation_space = spaces.Box(low=-5, high=5, shape=(18,), dtype=np.int8)
+        self.observation_space = spaces.Box(low=-5, high=60, shape=(19,), dtype=np.int8)
         
         # Assuming each cell is a possible action for simplicity
-        self.action_space = spaces.Discrete(144 + 3 * 12)
+        self.action_space = spaces.Discrete(300)#(144 + 3 * 12)
         
         # Initialize the board and other required variables
         self.board = np.zeros(12, dtype=np.int8)
-        self.player1_storage = [0,0,0] # zero giraffe, zero elephant, and zero chick to begin with. [2,2,2] at most.
-        self.player2_storage = [0,0,0]
+        self.player1_storage = np.array([0,0,0], np.int8) # zero giraffe, zero elephant, and zero chick to begin with. [2,2,2] at most.
+        self.player2_storage = np.array([0,0,0], np.int8)
         self.init_board = init_board
         self.current_player = 1
+        self.current_available_actions = None
 
     def _setup_board(self):
         # Resetting the board to a default configuration
@@ -105,10 +106,16 @@ class AnimalShogiEnv(gym.Env):
         self._setup_board()
         self.player1_storage = [0,0,0] # zero giraffe, zero elephant, and zero chick to begin with. [2,2,2] at most.
         self.player2_storage = [0,0,0]
-        self._setup_board()
         self.current_player = 1
+        self.current_available_actions = self.generate_valid_actions()
+        num_available_actions = len(self.current_available_actions)
 
-        return np.concatenate([self.board, np.array(self.player1_storage, dtype=np.int8), np.array(self.player2_storage, dtype=np.int8)])
+        return np.concatenate([
+            self.board, 
+            self.player1_storage,
+            self.player2_storage,
+            np.array([num_available_actions], dtype=np.int8)
+            ])
     
     @staticmethod
     def decode_action(action):
@@ -134,10 +141,14 @@ class AnimalShogiEnv(gym.Env):
         done = False
         info = {}
         
-        action = self.decode_action(action)
-        valid_actions = self.generate_valid_actions()
-        if action not in valid_actions:
-            reward = -10
+        # print(self.current_player)
+        # print(action)
+        action = action % len(self.current_available_actions)
+        action = self.current_available_actions[action]
+        # print(action)
+        
+        if action not in self.current_available_actions:
+            reward = -100
             done = True    # Optionally end the episode
             # In practice, you might also want to return additional info
             # about the invalid action for debugging purposes.
@@ -194,8 +205,15 @@ class AnimalShogiEnv(gym.Env):
             done = True
             
         self.current_player *= -1
+        self.current_available_actions = self.generate_valid_actions()
+        num_available_actions = len(self.current_available_actions)
 
-        next_state = np.concatenate([self.board, np.array(self.player1_storage), np.array(self.player2_storage)])
+        next_state = np.concatenate([
+            self.board, 
+            np.array(self.player1_storage), 
+            np.array(self.player2_storage),
+            np.array([num_available_actions])
+            ])
 
         return next_state, reward, done, info
     
@@ -203,7 +221,7 @@ class AnimalShogiEnv(gym.Env):
         """Adds a piece to the player's storage."""
         # Assuming piece is always positive
         storage = self.player1_storage if self.current_player==1 else self.player2_storage
-        
+        piece = piece[0]
         if piece == 1:  # Lions cannot be captured
             return False
         
@@ -223,6 +241,7 @@ class AnimalShogiEnv(gym.Env):
         # Assuming piece is always positive
         storage = self.player1_storage if self.current_player==1 else self.player2_storage
         
+        piece = piece[0]
         piece_type_to_storage_idx = {2: 0, 3: 1, 4: 2, 5: 2}
         storage_idx = piece_type_to_storage_idx.get(abs(piece), None)
         
