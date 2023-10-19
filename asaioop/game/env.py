@@ -1,3 +1,7 @@
+# TODO: create two envs, one for each player. But player 1 don't really select action at the
+#       player 2's step - it just replicates and passes to its env. This way two envs syn.
+#       And env for player 1 should give zero reward to this action at this step.
+
 from copy import deepcopy
 import numpy as np
 import gym
@@ -32,6 +36,7 @@ class AnimalShogiEnv(gym.Env):
         self.init_board = init_board
         self.current_player = 1
         self.current_available_actions = None
+        self.rwd_rnd = [0,0]
 
     def _setup_board(self):
         # Resetting the board to a default configuration
@@ -186,23 +191,28 @@ class AnimalShogiEnv(gym.Env):
             if self.remove_from_storage(piece): 
                 self.board[to_location] = self.current_player*piece
         
-        # Check for win conditions
+        # Check for win conditions # TODO: Don't forget to add bottom line condition!!!
+        if 1 not in self.board or -1 not in self.board:
+            reward = 1
+            done = True
+
+
         # 1. If a lion is captured
-        if 1 not in self.board:
-            reward = 1  # Player 2 wins
-            done = True
-        elif -1 not in self.board:
-            reward = 1  # Player 1 wins
-            done = True
+        # if 1 not in self.board:
+        #     reward = 1  # Player 2 wins
+        #     done = True
+        # elif -1 not in self.board:
+        #     reward = 1  # Player 1 wins
+        #     done = True
             
         # 2. If a lion reaches the opponent's bottom row
-        if 1 in self.board[9:12]:
-            reward = 1  # Player 1 wins
-            done = True
-        # Player 2's lion reaches opponent's bottom row
-        elif -1 in self.board[0:3]:
-            reward = 1  # Player 2 wins
-            done = True
+        # if 1 in self.board[9:12]:
+        #     reward = 1  # Player 1 wins
+        #     done = True
+        # # Player 2's lion reaches opponent's bottom row
+        # elif -1 in self.board[0:3]:
+        #     reward = 1  # Player 2 wins
+        #     done = True
             
         self.current_player *= -1
         self.current_available_actions = self.generate_valid_actions()
@@ -214,6 +224,9 @@ class AnimalShogiEnv(gym.Env):
             np.array(self.player2_storage),
             np.array([num_available_actions])
             ])
+        
+        self.rwd_rnd.append(reward)
+        self.rwd_rnd = self.rwd_rnd[1:]
 
         return next_state, reward, done, info
     
@@ -271,6 +284,21 @@ class AnimalShogiEnv(gym.Env):
 
 
 
+class PlayerEnv(gym.Env):
+    def __init__(self, god_view):
+        super(PlayerEnv, self).__init__()
+        
+        self.god_view = god_view
+
+        self.observation_space = spaces.Box(low=-5, high=60, shape=(19,), dtype=np.int8)
+        self.action_space = spaces.Discrete(180)#(144 + 3 * 12)
+
+    def reset(self):
+        return 1
+    
+    def step(self, action):
+        rwd_rnd = self.god_view.rwd_rnd
+        return [2], np.dot([-1, 1], rwd_rnd), False, {}
 
 # TODO: Current state that step returns is not good. 
 # TODO: do I also need current player? Maybe not....just call the right player in the training loop
