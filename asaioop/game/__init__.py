@@ -1,0 +1,1 @@
+from asaioop.game.env import AnimalShogiEnv
