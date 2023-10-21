@@ -192,8 +192,11 @@ class AnimalShogiEnv(gym.Env):
                 self.board[to_location] = self.current_player*piece
         
         # Check for win conditions # TODO: Don't forget to add bottom line condition!!!
-        if 1 not in self.board or -1 not in self.board:
-            reward = 1
+        if 1 not in self.board:
+            self.rwd_rnd = [-1, 1]
+            done = True 
+        elif -1 not in self.board:
+            self.rwd_rnd = [1, -1]
             done = True
 
 
@@ -224,9 +227,6 @@ class AnimalShogiEnv(gym.Env):
             np.array(self.player2_storage),
             np.array([num_available_actions])
             ])
-        
-        self.rwd_rnd.append(reward)
-        self.rwd_rnd = self.rwd_rnd[1:]
 
         return next_state, reward, done, info
     
@@ -285,8 +285,9 @@ class AnimalShogiEnv(gym.Env):
 
 
 class PlayerEnv(gym.Env):
-    def __init__(self, god_view):
+    def __init__(self, god_view, plyr):
         super(PlayerEnv, self).__init__()
+        self.plyr_idx = (1-plyr)//2
         
         self.god_view = god_view
 
@@ -298,7 +299,9 @@ class PlayerEnv(gym.Env):
     
     def step(self, action):
         rwd_rnd = self.god_view.rwd_rnd
-        return [2], np.dot([-1, 1], rwd_rnd), False, {}
+        
+        rtn =  [2], rwd_rnd[self.plyr_idx], False, {}
+        return rtn
 
 # TODO: Current state that step returns is not good. 
 # TODO: do I also need current player? Maybe not....just call the right player in the training loop
