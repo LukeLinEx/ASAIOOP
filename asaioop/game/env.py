@@ -1,7 +1,3 @@
-# TODO: create two envs, one for each player. But player 1 don't really select action at the
-#       player 2's step - it just replicates and passes to its env. This way two envs syn.
-#       And env for player 1 should give zero reward to this action at this step.
-
 from copy import deepcopy
 import numpy as np
 import gym
@@ -135,7 +131,7 @@ class AnimalShogiEnv(gym.Env):
             to_cell = (action - 144) % 12
             return ('drop', piece_type, to_cell)
 
-    def step(self, action):
+    def step(self, action, print_action=False):
         """
         action: a tuple (action_type, from_location, to_location)
             - action_type: "move" or "drop"
@@ -150,7 +146,8 @@ class AnimalShogiEnv(gym.Env):
         # print(action)
         action = action % len(self.current_available_actions)
         action = self.current_available_actions[action]
-        # print(action)
+        if print_action:
+            print(action)
         
         if action not in self.current_available_actions:
             reward = -100
@@ -191,31 +188,22 @@ class AnimalShogiEnv(gym.Env):
             if self.remove_from_storage(piece): 
                 self.board[to_location] = self.current_player*piece
         
-        # Check for win conditions # TODO: Don't forget to add bottom line condition!!!
-        if 1 not in self.board:
+        # Check for win conditions
+        ## 1. if lion is captured
+        if 1 not in self.board: # Player 2 wins
             self.rwd_rnd = [-1, 1]
             done = True 
-        elif -1 not in self.board:
+        elif -1 not in self.board: # Player 1 wins
             self.rwd_rnd = [1, -1]
             done = True
 
-
-        # 1. If a lion is captured
-        # if 1 not in self.board:
-        #     reward = 1  # Player 2 wins
-        #     done = True
-        # elif -1 not in self.board:
-        #     reward = 1  # Player 1 wins
-        #     done = True
-            
         # 2. If a lion reaches the opponent's bottom row
-        # if 1 in self.board[9:12]:
-        #     reward = 1  # Player 1 wins
-        #     done = True
-        # # Player 2's lion reaches opponent's bottom row
-        # elif -1 in self.board[0:3]:
-        #     reward = 1  # Player 2 wins
-        #     done = True
+        if -1 in self.board[0:3] and self.current_player==1:# Player 2 wins
+            self.rwd_rnd = [-1, 1]
+            done = True
+        elif 1 in self.board[9:12] and self.current_player==-1:# Player 1 wins
+            self.rwd_rnd = [1, -1]
+            done = True
             
         self.current_player *= -1
         self.current_available_actions = self.generate_valid_actions()
