@@ -26,6 +26,7 @@ share/python-wheels/
 *.egg
 MANIFEST
 models/*
+models*
 ad_hoc/*
 
 # PyInstaller
