@@ -1,3 +1,6 @@
+# TODO: Current state that step returns is not good. 
+# TODO: do I also need current player? Maybe not....just call the right player in the training loop
+
 from copy import deepcopy
 import numpy as np
 import gym
@@ -291,5 +294,3 @@ class PlayerEnv(gym.Env):
         rtn =  [2], rwd_rnd[self.plyr_idx], False, {}
         return rtn
 
-# TODO: Current state that step returns is not good. 
-# TODO: do I also need current player? Maybe not....just call the right player in the training loop
