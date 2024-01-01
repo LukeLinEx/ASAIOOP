@@ -32,11 +32,37 @@ gym.envs.register(
 p1_env = DummyVecEnv([lambda: gym.make('p1_env')])
 p2_env = DummyVecEnv([lambda: gym.make('p2_env')])
 
-model_1 = PPO("MlpPolicy", p1_env, verbose=0)
-model_2 = PPO("MlpPolicy", p2_env, verbose=0)
+model_1 = PPO(
+    "MlpPolicy", p1_env, verbose=0,
+    learning_rate=0.0003,
+            n_steps=2048,
+            batch_size=64,
+            n_epochs=10,
+            gamma=0.99,
+            gae_lambda=0.95,
+            clip_range=0.2,
+            clip_range_vf=None,
+            ent_coef=0.01,
+            vf_coef=0.5,
+            max_grad_norm=0.5)
+
+
+model_2 = PPO(
+    "MlpPolicy", p1_env, verbose=0,
+    learning_rate=0.0003,
+            n_steps=2048,
+            batch_size=64,
+            n_epochs=10,
+            gamma=0.99,
+            gae_lambda=0.95,
+            clip_range=0.2,
+            clip_range_vf=None,
+            ent_coef=0.01,
+            vf_coef=0.5,
+            max_grad_norm=0.5)
 
 # Training parameters
-num_games = 50000
+num_games = 50
 max_steps_per_game = 100
 
 start = time.time()
@@ -44,7 +70,7 @@ start = time.time()
 study = False
 mx_step = 0
 track = []
-for game in range(num_games):
+for game in range(num_games+1):
     obs = god_view.reset()
     p1_env.reset()
     p2_env.reset()
@@ -89,12 +115,12 @@ for game in range(num_games):
     model_1.learn(total_timesteps=rnd)
     model_2.learn(total_timesteps=rnd)
 
-    if game%50 == 0:
+    if game%10 == 0:
         print("At the game {}".format(game))
         time_last = time.time() - start
         print("Training has been {} seconds".format(time_last))
 
-    if game%1000 ==0:
+    if game%10 ==0:
         model_1.save(f"./models/ppo_player1_dbg_{game}")
         model_2.save(f"./models/ppo_player2_dbg_{game}")
 
