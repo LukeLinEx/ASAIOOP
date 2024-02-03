@@ -32,37 +32,16 @@ gym.envs.register(
 p1_env = DummyVecEnv([lambda: gym.make('p1_env')])
 p2_env = DummyVecEnv([lambda: gym.make('p2_env')])
 
-model_1 = PPO(
-    "MlpPolicy", p1_env, verbose=0,
-    learning_rate=0.0003,
-            n_steps=2048,
-            batch_size=64,
-            n_epochs=10,
-            gamma=0.99,
-            gae_lambda=0.95,
-            clip_range=0.2,
-            clip_range_vf=None,
-            ent_coef=0.01,
-            vf_coef=0.5,
-            max_grad_norm=0.5)
 
 
-model_2 = PPO(
-    "MlpPolicy", p1_env, verbose=0,
-    learning_rate=0.0003,
-            n_steps=2048,
-            batch_size=64,
-            n_epochs=10,
-            gamma=0.99,
-            gae_lambda=0.95,
-            clip_range=0.2,
-            clip_range_vf=None,
-            ent_coef=0.01,
-            vf_coef=0.5,
-            max_grad_norm=0.5)
+# If continue training
+last_game = 13000
+model_1 = PPO.load(f"./models/ppo_player1_dbg_{last_game}", env=p1_env)
+model_2 = PPO.load(f"./models/ppo_player2_dbg_{last_game}", env=p2_env)
 
 # Training parameters
-num_games = 50000
+start_from = last_game + 1
+num_games = 3000
 max_steps_per_game = 100
 
 start = time.time()
@@ -70,7 +49,8 @@ start = time.time()
 study = False
 mx_step = 0
 track = []
-for game in range(num_games+1):
+print("Start training:")
+for game in range(start_from, start_from + num_games):
     obs = god_view.reset()
     p1_env.reset()
     p2_env.reset()
